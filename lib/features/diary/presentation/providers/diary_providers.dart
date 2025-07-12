@@ -11,7 +11,6 @@ import '../../domain/usecases/add_entry.dart';
 import '../../domain/usecases/delete_entry.dart';
 import '../../domain/usecases/get_all_entries.dart';
 import '../../domain/usecases/update_entry.dart';
-import '../screens/stt_test_screen.dart';
 import 'diary_notifier.dart';
 
 final titleInputProvider = StateProvider<String>((ref) => '');

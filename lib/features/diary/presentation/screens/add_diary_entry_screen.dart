@@ -56,6 +56,8 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
       setState(() => _activeMic = fieldKey);
 
       _speech.listen(
+        pauseFor: Duration(minutes: 2),
+        listenFor: Duration(minutes: 5),
         onResult: (result) {
           setState(() {
             final spoken = result.recognizedWords.trim();

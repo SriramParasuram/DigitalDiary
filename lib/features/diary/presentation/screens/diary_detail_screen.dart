@@ -22,13 +22,19 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
   bool _isEditing = false;
   String? _activeMic;
 
+  // 🔒 These store a snapshot of existing content for safe appending
+  String _existingTitle = '';
+  String _existingContent = '';
+
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.entry.title);
     _contentController = TextEditingController(text: widget.entry.content);
+    _existingTitle = widget.entry.title;
+    _existingContent = widget.entry.content;
     _sttService = SpeechToTextService();
-    _activeMic = null; // ✅ Reset mic on load
+    _activeMic = null;
   }
 
   @override
@@ -43,7 +49,7 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
     return DateFormat('MMMM dd, yyyy – EEEE, hh:mm a').format(date);
   }
 
-  Future<void> _toggleMic(String fieldKey, void Function(String) onResult) async {
+  Future<void> _toggleMic(String fieldKey) async {
     if (_activeMic == fieldKey) {
       _sttService.stop();
       setState(() => _activeMic = null);
@@ -52,12 +58,17 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
       if (!available) return;
 
       setState(() => _activeMic = fieldKey);
+
+      // 🔐 Cache existing content safely
+      final String baseText = fieldKey == 'title' ? _titleController.text : _contentController.text;
+
       _sttService.listen(onResult: (words) {
         setState(() {
+          final newText = (baseText + ' ' + words).trim();
           if (fieldKey == 'title') {
-            _titleController.text = words;
+            _titleController.text = newText;
           } else {
-            _contentController.text = words;
+            _contentController.text = newText;
           }
         });
       });
@@ -87,8 +98,8 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
 
       setState(() {
         _isEditing = false;
-        _titleController.text = updatedTitle;
-        _contentController.text = updatedContent;
+        _existingTitle = updatedTitle;
+        _existingContent = updatedContent;
       });
     } else {
       setState(() => _isEditing = true);
@@ -133,9 +144,7 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
                     _activeMic == 'title' ? Icons.mic : Icons.mic_none,
                     color: _activeMic == 'title' ? Colors.red : null,
                   ),
-                  onPressed: () => _toggleMic('title', (words) {
-                    _titleController.text = words;
-                  }),
+                  onPressed: () => _toggleMic('title'),
                 ),
               ],
             )
@@ -164,9 +173,7 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
                       _activeMic == 'content' ? Icons.mic : Icons.mic_none,
                       color: _activeMic == 'content' ? Colors.red : null,
                     ),
-                    onPressed: () => _toggleMic('content', (words) {
-                      _contentController.text = words;
-                    }),
+                    onPressed: () => _toggleMic('content'),
                   ),
                 ),
               ],
