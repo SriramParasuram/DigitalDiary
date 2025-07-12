@@ -26,8 +26,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'detail',
             path: '/detail',
             pageBuilder: (context, state) {
-              final entryId = state.extra! as String;
-              return MaterialPage(child: DiaryDetailScreen( entry: entryId,));
+              final entry = state.extra as DiaryEntry;
+              return MaterialPage(child: DiaryDetailScreen( entry:entry ));
             },
           ),
           // GoRoute(

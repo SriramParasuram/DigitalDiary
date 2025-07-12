@@ -4,9 +4,10 @@ import 'package:intl/intl.dart';
 
 import '../../domain/entities/diary_entry.dart';
 import '../providers/diary_providers.dart';
+import '../../data/services/speech_to_text_service.dart';
 
 class DiaryDetailScreen extends ConsumerStatefulWidget {
-  final String entry;
+  final DiaryEntry entry;
   const DiaryDetailScreen({super.key, required this.entry});
 
   @override
@@ -16,20 +17,25 @@ class DiaryDetailScreen extends ConsumerStatefulWidget {
 class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
+  late SpeechToTextService _sttService;
 
-  bool _controllersPopulated = false;
+  bool _isEditing = false;
+  String? _activeMic;
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController();
-    _contentController = TextEditingController();
+    _titleController = TextEditingController(text: widget.entry.title);
+    _contentController = TextEditingController(text: widget.entry.content);
+    _sttService = SpeechToTextService();
+    _activeMic = null; // ✅ Reset mic on load
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _sttService.stop();
     super.dispose();
   }
 
@@ -37,23 +43,29 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
     return DateFormat('MMMM dd, yyyy – EEEE, hh:mm a').format(date);
   }
 
-  void _toggleMic(String fieldKey, void Function(String) onResult) {
-    final sttService = ref.read(speechToTextServiceProvider);
-    final current = ref.read(activeMicProvider);
-
-    if (current == fieldKey) {
-      sttService.stop();
-      ref.read(activeMicProvider.notifier).state = null;
+  Future<void> _toggleMic(String fieldKey, void Function(String) onResult) async {
+    if (_activeMic == fieldKey) {
+      _sttService.stop();
+      setState(() => _activeMic = null);
     } else {
-      ref.read(activeMicProvider.notifier).state = fieldKey;
-      sttService.listen(onResult: onResult);
+      final available = await _sttService.initialize();
+      if (!available) return;
+
+      setState(() => _activeMic = fieldKey);
+      _sttService.listen(onResult: (words) {
+        setState(() {
+          if (fieldKey == 'title') {
+            _titleController.text = words;
+          } else {
+            _contentController.text = words;
+          }
+        });
+      });
     }
   }
 
-  Future<void> _toggleEditSave(DiaryEntry entry) async {
-    final isEditing = ref.read(isEditingProvider);
-
-    if (isEditing) {
+  Future<void> _toggleEditSave() async {
+    if (_isEditing) {
       final updatedTitle = _titleController.text.trim();
       final updatedContent = _contentController.text.trim();
 
@@ -65,51 +77,40 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
       }
 
       final updatedEntry = DiaryEntry(
-        id: entry.id,
+        id: widget.entry.id,
         title: updatedTitle,
         content: updatedContent,
-        createdAt: entry.createdAt,
+        createdAt: widget.entry.createdAt,
       );
 
       await ref.read(diaryNotifierProvider.notifier).updateExistingEntry(updatedEntry);
-    }
 
-    ref.read(isEditingProvider.notifier).state = !isEditing;
-    setState(() {}); // ensure UI updates on save toggle
+      setState(() {
+        _isEditing = false;
+        _titleController.text = updatedTitle;
+        _contentController.text = updatedContent;
+      });
+    } else {
+      setState(() => _isEditing = true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final isEditing = ref.watch(isEditingProvider);
-    final activeMic = ref.watch(activeMicProvider);
     final ttsService = ref.read(ttsServiceProvider);
-
-    final diaryList = ref.watch(diaryNotifierProvider);
-    final entry = diaryList.firstWhere((e) => e.id == widget.entry);
-
-    // 🧠 Populate controllers only once when switching to edit
-    if (isEditing && !_controllersPopulated) {
-      _titleController.text = entry.title;
-      _contentController.text = entry.content;
-      _controllersPopulated = true;
-    }
-
-    if (!isEditing && _controllersPopulated) {
-      _controllersPopulated = false;
-    }
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Entry Details'),
         actions: [
           IconButton(
-            icon: Icon(isEditing ? Icons.save : Icons.edit),
-            onPressed: () => _toggleEditSave(entry),
+            icon: Icon(_isEditing ? Icons.save : Icons.edit),
+            onPressed: _toggleEditSave,
           ),
-          if (!isEditing)
+          if (!_isEditing)
             IconButton(
               icon: const Icon(Icons.volume_up),
-              onPressed: () => ttsService.speak(entry.content),
+              onPressed: () => ttsService.speak(_contentController.text),
             ),
         ],
       ),
@@ -118,7 +119,7 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            isEditing
+            _isEditing
                 ? Row(
               children: [
                 Expanded(
@@ -129,8 +130,8 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
                 ),
                 IconButton(
                   icon: Icon(
-                    activeMic == 'title' ? Icons.mic : Icons.mic_none,
-                    color: activeMic == 'title' ? Colors.redAccent : null,
+                    _activeMic == 'title' ? Icons.mic : Icons.mic_none,
+                    color: _activeMic == 'title' ? Colors.red : null,
                   ),
                   onPressed: () => _toggleMic('title', (words) {
                     _titleController.text = words;
@@ -139,16 +140,16 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
               ],
             )
                 : Text(
-              entry.title,
+              _titleController.text,
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 12),
             Text(
-              _formatDate(entry.createdAt),
+              _formatDate(widget.entry.createdAt),
               style: TextStyle(color: Colors.grey[600]),
             ),
             const Divider(height: 32),
-            isEditing
+            _isEditing
                 ? Column(
               children: [
                 TextField(
@@ -160,8 +161,8 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
                   alignment: Alignment.centerRight,
                   child: IconButton(
                     icon: Icon(
-                      activeMic == 'content' ? Icons.mic : Icons.mic_none,
-                      color: activeMic == 'content' ? Colors.redAccent : null,
+                      _activeMic == 'content' ? Icons.mic : Icons.mic_none,
+                      color: _activeMic == 'content' ? Colors.red : null,
                     ),
                     onPressed: () => _toggleMic('content', (words) {
                       _contentController.text = words;
@@ -171,7 +172,7 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
               ],
             )
                 : Text(
-              entry.content,
+              _contentController.text,
               style: const TextStyle(fontSize: 16),
             ),
           ],

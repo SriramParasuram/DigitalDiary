@@ -62,7 +62,7 @@ class _DiaryListScreenState extends ConsumerState<DiaryListScreen> {
               onPressed: () => _confirmDelete(context, ref, index),
             ),
             // onTap: () => context.pushNamed('detail', extra: entry),
-            onTap: () => context.pushNamed('detail', extra: entry.id),
+            onTap: () => context.pushNamed('detail', extra: entry),
           );
         },
       ),
