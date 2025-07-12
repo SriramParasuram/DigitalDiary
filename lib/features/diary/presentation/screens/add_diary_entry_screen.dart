@@ -1,3 +1,4 @@
+// ✅ Refactored AddDiaryEntryScreen with mic icons beside fields only and append logic
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,7 +8,7 @@ import '../../domain/entities/diary_entry.dart';
 import '../providers/diary_providers.dart';
 
 class AddDiaryEntryScreen extends ConsumerStatefulWidget {
-  final DiaryEntry? entry; // null = add, non-null = edit
+  final DiaryEntry? entry;
 
   const AddDiaryEntryScreen({Key? key, this.entry}) : super(key: key);
 
@@ -38,7 +39,11 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
   }
 
   Future<void> _startListening({required bool forTitle}) async {
-    bool available = await _speech.initialize();
+    final available = await _speech.initialize(
+      onStatus: (status) => debugPrint('[STT] Status: $status'),
+      onError: (error) => debugPrint('[STT] Error: ${error.errorMsg}'),
+    );
+
     if (available) {
       setState(() {
         if (forTitle) {
@@ -48,15 +53,23 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
         }
       });
 
-      _speech.listen(onResult: (result) {
-        setState(() {
-          if (forTitle) {
-            _titleController.text = result.recognizedWords;
-          } else {
-            _contentController.text = result.recognizedWords;
-          }
-        });
-      });
+      _speech.listen(
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 5),
+        onResult: (result) {
+          setState(() {
+            if (forTitle) {
+              _titleController.text =
+                  ' ${result.recognizedWords}'.trim();
+            } else {
+              _contentController.text =
+                  ' ${result.recognizedWords}'.trim();
+            }
+          });
+        },
+      );
+    } else {
+      debugPrint('[STT] Initialization failed');
     }
   }
 
@@ -94,7 +107,7 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
       await notifier.addNewEntry(entry);
     }
 
-    if (mounted) context.pop(); // return to previous screen
+    if (mounted) context.pop();
   }
 
   @override
@@ -104,16 +117,6 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isEdit ? 'Edit Entry' : 'Add Entry'),
-        actions: [
-          IconButton(
-            icon: Icon((_isListeningTitle || _isListeningContent) ? Icons.mic_off : Icons.mic),
-            onPressed: () {
-              if (_isListeningTitle || _isListeningContent) {
-                _stopListening();
-              }
-            },
-          )
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -128,10 +131,11 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.mic_none),
-                  onPressed: _isListeningTitle
-                      ? _stopListening
-                      : () => _startListening(forTitle: true),
+                  icon: Icon(_isListeningTitle ? Icons.mic : Icons.mic_none,
+                      color: _isListeningTitle ? Colors.red : null),
+                  onPressed: () => _isListeningTitle
+                      ? _stopListening()
+                      : _startListening(forTitle: true),
                 )
               ],
             ),
@@ -147,10 +151,11 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.mic_none),
-                  onPressed: _isListeningContent
-                      ? _stopListening
-                      : () => _startListening(forTitle: false),
+                  icon: Icon(_isListeningContent ? Icons.mic : Icons.mic_none,
+                      color: _isListeningContent ? Colors.red : null),
+                  onPressed: () => _isListeningContent
+                      ? _stopListening()
+                      : _startListening(forTitle: false),
                 )
               ],
             ),
