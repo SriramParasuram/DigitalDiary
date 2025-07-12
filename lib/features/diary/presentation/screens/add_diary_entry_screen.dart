@@ -1,4 +1,3 @@
-// ✅ Refactored AddDiaryEntryScreen with mic icons beside fields only and append logic
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,8 +19,7 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
   late stt.SpeechToText _speech;
-  bool _isListeningTitle = false;
-  bool _isListeningContent = false;
+  String? _activeMic; // 'title' or 'content' or null
 
   @override
   void initState() {
@@ -29,56 +27,47 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
     _titleController = TextEditingController(text: widget.entry?.title ?? '');
     _contentController = TextEditingController(text: widget.entry?.content ?? '');
     _speech = stt.SpeechToText();
+    _activeMic = null;
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
-  Future<void> _startListening({required bool forTitle}) async {
-    final available = await _speech.initialize(
-      onStatus: (status) => debugPrint('[STT] Status: $status'),
-      onError: (error) => debugPrint('[STT] Error: ${error.errorMsg}'),
-    );
+  Future<void> _toggleMic(String fieldKey) async {
+    if (_activeMic == fieldKey) {
+      // Stop if already listening to this field
+      _speech.stop();
+      setState(() => _activeMic = null);
+    } else {
+      // Stop any current listening
+      await _speech.stop();
+      final available = await _speech.initialize(
+        onStatus: (status) => debugPrint('[STT] Status: $status'),
+        onError: (error) => debugPrint('[STT] Error: ${error.errorMsg}'),
+      );
 
-    if (available) {
-      setState(() {
-        if (forTitle) {
-          _isListeningTitle = true;
-        } else {
-          _isListeningContent = true;
-        }
-      });
+      if (!available) return;
+
+      setState(() => _activeMic = fieldKey);
 
       _speech.listen(
-        listenFor: const Duration(seconds: 30),
-        pauseFor: const Duration(seconds: 5),
         onResult: (result) {
           setState(() {
-            if (forTitle) {
-              _titleController.text =
-                  ' ${result.recognizedWords}'.trim();
+            final spoken = result.recognizedWords.trim();
+            if (fieldKey == 'title') {
+              _titleController.text = spoken;
             } else {
-              _contentController.text =
-                  ' ${result.recognizedWords}'.trim();
+              _contentController.text = spoken;
             }
           });
         },
       );
-    } else {
-      debugPrint('[STT] Initialization failed');
     }
-  }
-
-  void _stopListening() {
-    _speech.stop();
-    setState(() {
-      _isListeningTitle = false;
-      _isListeningContent = false;
-    });
   }
 
   void _saveEntry() async {
@@ -131,12 +120,12 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(_isListeningTitle ? Icons.mic : Icons.mic_none,
-                      color: _isListeningTitle ? Colors.red : null),
-                  onPressed: () => _isListeningTitle
-                      ? _stopListening()
-                      : _startListening(forTitle: true),
-                )
+                  icon: Icon(
+                    _activeMic == 'title' ? Icons.mic : Icons.mic_none,
+                    color: _activeMic == 'title' ? Colors.red : null,
+                  ),
+                  onPressed: () => _toggleMic('title'),
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -151,12 +140,12 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
                   ),
                 ),
                 IconButton(
-                  icon: Icon(_isListeningContent ? Icons.mic : Icons.mic_none,
-                      color: _isListeningContent ? Colors.red : null),
-                  onPressed: () => _isListeningContent
-                      ? _stopListening()
-                      : _startListening(forTitle: false),
-                )
+                  icon: Icon(
+                    _activeMic == 'content' ? Icons.mic : Icons.mic_none,
+                    color: _activeMic == 'content' ? Colors.red : null,
+                  ),
+                  onPressed: () => _toggleMic('content'),
+                ),
               ],
             ),
             const SizedBox(height: 24),
