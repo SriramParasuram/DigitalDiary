@@ -49,6 +49,32 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
     return DateFormat('MMMM dd, yyyy – EEEE, hh:mm a').format(date);
   }
 
+  // Future<void> _toggleMic(String fieldKey) async {
+  //   if (_activeMic == fieldKey) {
+  //     _sttService.stop();
+  //     setState(() => _activeMic = null);
+  //   } else {
+  //     final available = await _sttService.initialize();
+  //     if (!available) return;
+  //
+  //     setState(() => _activeMic = fieldKey);
+  //
+  //     //  Cache existing content safely
+  //     final String baseText = fieldKey == 'title' ? _titleController.text : _contentController.text;
+  //
+  //     _sttService.listen(onResult: (words) {
+  //       setState(() {
+  //         final newText = (baseText + ' ' + words).trim();
+  //         if (fieldKey == 'title') {
+  //           _titleController.text = newText;
+  //         } else {
+  //           _contentController.text = newText;
+  //         }
+  //       });
+  //     });
+  //   }
+  // }
+
   Future<void> _toggleMic(String fieldKey) async {
     if (_activeMic == fieldKey) {
       _sttService.stop();
@@ -59,19 +85,32 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
 
       setState(() => _activeMic = fieldKey);
 
-      // 🔐 Cache existing content safely
-      final String baseText = fieldKey == 'title' ? _titleController.text : _contentController.text;
+      final String baseText = fieldKey == 'title'
+          ? _titleController.text
+          : _contentController.text;
 
-      _sttService.listen(onResult: (words) {
-        setState(() {
-          final newText = (baseText + ' ' + words).trim();
-          if (fieldKey == 'title') {
-            _titleController.text = newText;
-          } else {
-            _contentController.text = newText;
+      _sttService.listen(
+        onResult: (words) {
+          setState(() {
+            final newText = (baseText + ' ' + words).trim();
+            if (fieldKey == 'title') {
+              _titleController.text = newText;
+            } else {
+              _contentController.text = newText;
+            }
+          });
+        },
+        onStatus: (status) {
+          debugPrint('[STT] Status: $status');
+          if (status == 'notListening' || status == 'done') {
+            setState(() => _activeMic = null);
           }
-        });
-      });
+        },
+        onError: (error) {
+          debugPrint('[STT] Error: ${error.errorMsg}');
+          setState(() => _activeMic = null);
+        },
+      );
     }
   }
 

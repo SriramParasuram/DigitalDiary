@@ -40,31 +40,44 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
 
   Future<void> _toggleMic(String fieldKey) async {
     if (_activeMic == fieldKey) {
-      // Stop if already listening to this field
       _speech.stop();
       setState(() => _activeMic = null);
     } else {
-      // Stop any current listening
       await _speech.stop();
       final available = await _speech.initialize(
-        onStatus: (status) => debugPrint('[STT] Status: $status'),
-        onError: (error) => debugPrint('[STT] Error: ${error.errorMsg}'),
+        onStatus: (status) {
+          debugPrint('[STT] Status: $status');
+          if (status == 'done') {
+            setState(() => _activeMic = null);
+          }
+        },
+        onError: (error) {
+          debugPrint('[STT] Error: ${error.errorMsg}');
+          setState(() => _activeMic = null);
+        },
       );
 
       if (!available) return;
 
       setState(() => _activeMic = fieldKey);
 
+      final baseText = fieldKey == 'title'
+          ? _titleController.text
+          : _contentController.text;
+
       _speech.listen(
-        pauseFor: Duration(minutes: 2),
-        listenFor: Duration(minutes: 5),
+        pauseFor: const Duration(seconds: 10),
+        listenFor: const Duration(seconds: 60),
+        localeId: 'en_US',
         onResult: (result) {
           setState(() {
             final spoken = result.recognizedWords.trim();
+            final newText = (baseText + ' ' + spoken).trim();
+
             if (fieldKey == 'title') {
-              _titleController.text = spoken;
+              _titleController.text = newText;
             } else {
-              _contentController.text = spoken;
+              _contentController.text = newText;
             }
           });
         },
