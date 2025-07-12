@@ -23,13 +23,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) =>  AddDiaryEntryScreen(),
           ),
           GoRoute(
-            path: 'detail',
             name: 'detail',
-            builder: (context, state) {
-              final entry = state.extra as DiaryEntry;
-              return DiaryDetailScreen(entry: entry);
+            path: '/detail',
+            pageBuilder: (context, state) {
+              final entryId = state.extra! as String;
+              return MaterialPage(child: DiaryDetailScreen( entry: entryId,));
             },
           ),
+          // GoRoute(
+          //   path: 'detail',
+          //   name: 'detail',
+          //   builder: (context, state) {
+          //     final entry = state.extra as DiaryEntry;
+          //     return DiaryDetailScreen(entry: entry);
+          //   },
+          // ),
         ],
       ),
     ],

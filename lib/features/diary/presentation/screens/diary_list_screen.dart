@@ -14,7 +14,7 @@ class DiaryListScreen extends ConsumerStatefulWidget {
 
 class _DiaryListScreenState extends ConsumerState<DiaryListScreen> {
   String _formatDate(DateTime date) {
-    return DateFormat('MMMM dd, yyyy – EEEE').format(date);
+    return DateFormat('MMMM dd, yyyy – EEEE, hh:mm a').format(date);
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, int index) {
@@ -61,7 +61,8 @@ class _DiaryListScreenState extends ConsumerState<DiaryListScreen> {
               icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
               onPressed: () => _confirmDelete(context, ref, index),
             ),
-            onTap: () => context.pushNamed('detail', extra: entry),
+            // onTap: () => context.pushNamed('detail', extra: entry),
+            onTap: () => context.pushNamed('detail', extra: entry.id),
           );
         },
       ),

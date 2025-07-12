@@ -1,4 +1,3 @@
-// lib/diary/presentation/screens/diary_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -6,59 +5,97 @@ import 'package:intl/intl.dart';
 import '../../domain/entities/diary_entry.dart';
 import '../providers/diary_providers.dart';
 
-class DiaryDetailScreen extends ConsumerWidget {
-  final DiaryEntry entry;
+class DiaryDetailScreen extends ConsumerStatefulWidget {
+  final String entry;
   const DiaryDetailScreen({super.key, required this.entry});
 
-  String _formatDate(DateTime date) {
-    return DateFormat('MMMM dd, yyyy – EEEE').format(date);
+  @override
+  ConsumerState<DiaryDetailScreen> createState() => _DiaryDetailScreenState();
+}
+
+class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
+  late TextEditingController _titleController;
+  late TextEditingController _contentController;
+
+  bool _controllersPopulated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+    _contentController = TextEditingController();
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isEditing = ref.watch(isEditingProvider);
-    final activeMic = ref.watch(activeMicProvider);
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
+
+  String _formatDate(DateTime date) {
+    return DateFormat('MMMM dd, yyyy – EEEE, hh:mm a').format(date);
+  }
+
+  void _toggleMic(String fieldKey, void Function(String) onResult) {
     final sttService = ref.read(speechToTextServiceProvider);
-    final ttsService = ref.read(ttsServiceProvider);
+    final current = ref.read(activeMicProvider);
 
-    final titleController = ref.watch(titleControllerProvider);
-    final contentController = ref.watch(contentControllerProvider);
+    if (current == fieldKey) {
+      sttService.stop();
+      ref.read(activeMicProvider.notifier).state = null;
+    } else {
+      ref.read(activeMicProvider.notifier).state = fieldKey;
+      sttService.listen(onResult: onResult);
+    }
+  }
 
-    void toggleMic(String fieldKey, void Function(String) onResult) {
-      final current = ref.read(activeMicProvider);
-      if (current == fieldKey) {
-        sttService.stop();
-        ref.read(activeMicProvider.notifier).state = null;
-      } else {
-        ref.read(activeMicProvider.notifier).state = fieldKey;
-        sttService.listen(onResult: onResult);
+  Future<void> _toggleEditSave(DiaryEntry entry) async {
+    final isEditing = ref.read(isEditingProvider);
+
+    if (isEditing) {
+      final updatedTitle = _titleController.text.trim();
+      final updatedContent = _contentController.text.trim();
+
+      if (updatedTitle.isEmpty || updatedContent.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Title and content cannot be empty')),
+        );
+        return;
       }
+
+      final updatedEntry = DiaryEntry(
+        id: entry.id,
+        title: updatedTitle,
+        content: updatedContent,
+        createdAt: entry.createdAt,
+      );
+
+      await ref.read(diaryNotifierProvider.notifier).updateExistingEntry(updatedEntry);
     }
 
-    Future<void> toggleEditSave() async {
-      if (ref.read(isEditingProvider)) {
-        final updatedTitle = titleController.text.trim();
-        final updatedContent = contentController.text.trim();
+    ref.read(isEditingProvider.notifier).state = !isEditing;
+    setState(() {}); // ensure UI updates on save toggle
+  }
 
-        if (updatedTitle.isEmpty || updatedContent.isEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Title and content cannot be empty')),
-          );
-          return;
-        }
+  @override
+  Widget build(BuildContext context) {
+    final isEditing = ref.watch(isEditingProvider);
+    final activeMic = ref.watch(activeMicProvider);
+    final ttsService = ref.read(ttsServiceProvider);
 
-        final updatedEntry = DiaryEntry(
-          id: entry.id,
-          title: updatedTitle,
-          content: updatedContent,
-          createdAt: entry.createdAt,
-        );
+    final diaryList = ref.watch(diaryNotifierProvider);
+    final entry = diaryList.firstWhere((e) => e.id == widget.entry);
 
-        await ref.read(diaryNotifierProvider.notifier).updateExistingEntry(updatedEntry);
-        ref.read(isEditingProvider.notifier).state = false;
-      } else {
-        ref.read(isEditingProvider.notifier).state = true;
-      }
+    // 🧠 Populate controllers only once when switching to edit
+    if (isEditing && !_controllersPopulated) {
+      _titleController.text = entry.title;
+      _contentController.text = entry.content;
+      _controllersPopulated = true;
+    }
+
+    if (!isEditing && _controllersPopulated) {
+      _controllersPopulated = false;
     }
 
     return Scaffold(
@@ -67,7 +104,7 @@ class DiaryDetailScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: Icon(isEditing ? Icons.save : Icons.edit),
-            onPressed: toggleEditSave,
+            onPressed: () => _toggleEditSave(entry),
           ),
           if (!isEditing)
             IconButton(
@@ -86,7 +123,7 @@ class DiaryDetailScreen extends ConsumerWidget {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: titleController,
+                    controller: _titleController,
                     decoration: const InputDecoration(labelText: 'Title'),
                   ),
                 ),
@@ -95,8 +132,8 @@ class DiaryDetailScreen extends ConsumerWidget {
                     activeMic == 'title' ? Icons.mic : Icons.mic_none,
                     color: activeMic == 'title' ? Colors.redAccent : null,
                   ),
-                  onPressed: () => toggleMic('title', (words) {
-                    titleController.text = words;
+                  onPressed: () => _toggleMic('title', (words) {
+                    _titleController.text = words;
                   }),
                 ),
               ],
@@ -115,7 +152,7 @@ class DiaryDetailScreen extends ConsumerWidget {
                 ? Column(
               children: [
                 TextField(
-                  controller: contentController,
+                  controller: _contentController,
                   decoration: const InputDecoration(labelText: 'Content'),
                   maxLines: 8,
                 ),
@@ -126,8 +163,8 @@ class DiaryDetailScreen extends ConsumerWidget {
                       activeMic == 'content' ? Icons.mic : Icons.mic_none,
                       color: activeMic == 'content' ? Colors.redAccent : null,
                     ),
-                    onPressed: () => toggleMic('content', (words) {
-                      contentController.text = words;
+                    onPressed: () => _toggleMic('content', (words) {
+                      _contentController.text = words;
                     }),
                   ),
                 ),
