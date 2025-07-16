@@ -24,6 +24,7 @@ dependencies:
   speech_to_text: ^7.1.0
   permission_handler: ^12.0.1
   flutter_native_splash: ^2.4.6
+  flutter_launcher_icons: ^0.14.4
 
 dev_dependencies:
   flutter_test:
@@ -46,14 +47,6 @@ flutter:
 
 
 
-flutter_native_splash:
-  color: "#FFA726"
-  image: lib/assets/splash/splash_image.png
-  android: true
-  ios: true
-  fullscreen: true
-  android_gravity: center
-  ios_content_mode: center
 
 
 
