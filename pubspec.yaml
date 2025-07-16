@@ -44,8 +44,29 @@ flutter:
   uses-material-design: true
   assets:
     - lib/assets/splash/splash_image.png
+    - lib/assets/icons/app_icon.png
 
 
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "lib/assets/icons/app_icon.png"
+
+flutter_native_splash:
+  android: true
+  ios: false
+  fullscreen: true
+  color: "#FFA726" # Background color
+  image: lib/assets/splash/splash_image.png
+  android_gravity: fill
+  android_screen_orientation: portrait
+
+  android_12:
+    color: "#FFA726" # Required for Android 12+
+    image: lib/assets/splash/splash_image.png
+    icon_background_color: "#FFA726"
+    image_dark: lib/assets/splash/splash_image.png
+    icon_background_color_dark: "#FFA726"
 
 
 
