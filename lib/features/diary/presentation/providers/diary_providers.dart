@@ -12,6 +12,7 @@ import '../../domain/usecases/delete_entry.dart';
 import '../../domain/usecases/get_all_entries.dart';
 import '../../domain/usecases/update_entry.dart';
 import 'diary_notifier.dart';
+import 'mic_controller.dart';
 
 final titleInputProvider = StateProvider<String>((ref) => '');
 final contentInputProvider = StateProvider<String>((ref) => '');
@@ -39,11 +40,7 @@ final contentControllerProvider = Provider.autoDispose<TextEditingController>((
   return controller;
 });
 
-final activeMicProvider = StateProvider<String?>((ref) => null);
-// final isListeningProvider = StateProvider<bool>((ref) => false);
 
-
-final isListeningProvider = StateProvider<bool>((_) => false);
 
 final diaryLocalDataSourceProvider = Provider(
   (ref) => DiaryLocalDataSourceImpl(),
@@ -92,4 +89,9 @@ final diaryNotifierProvider =
 final ttsServiceProvider = Provider((ref) => TextToSpeechService());
 final speechToTextServiceProvider = Provider<SpeechToTextService>((ref) {
   return SpeechToTextService();
+});
+
+final micControllerProvider = StateNotifierProvider<MicControllerNotifier, String?>((ref) {
+  final sttService = ref.read(speechToTextServiceProvider);
+  return MicControllerNotifier(ref, sttService);
 });

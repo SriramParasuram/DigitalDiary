@@ -39,7 +39,8 @@ class MyApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return MaterialApp.router(
-      title: 'Digital Diary',
+      debugShowCheckedModeBanner: false,
+      title: 'Digital Notes',
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.orange),
@@ -48,7 +49,7 @@ class MyApp extends ConsumerWidget {
           foregroundColor: Colors.white,
         ),
       ),
-      routerConfig: ref.read(appRouterProvider), // <-- uses Riverpod for router
+      routerConfig: ref.read(appRouterProvider),
     );
   }
 }

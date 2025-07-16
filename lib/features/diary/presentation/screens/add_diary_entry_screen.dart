@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../domain/entities/diary_entry.dart';
@@ -12,20 +13,23 @@ class AddDiaryEntryScreen extends ConsumerStatefulWidget {
   const AddDiaryEntryScreen({Key? key, this.entry}) : super(key: key);
 
   @override
-  ConsumerState<AddDiaryEntryScreen> createState() => _AddDiaryEntryScreenState();
+  ConsumerState<AddDiaryEntryScreen> createState() =>
+      _AddDiaryEntryScreenState();
 }
 
 class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
   late stt.SpeechToText _speech;
-  String? _activeMic; // 'title' or 'content' or null
+  String? _activeMic;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.entry?.title ?? '');
-    _contentController = TextEditingController(text: widget.entry?.content ?? '');
+    _contentController = TextEditingController(
+      text: widget.entry?.content ?? '',
+    );
     _speech = stt.SpeechToText();
     _activeMic = null;
   }
@@ -40,52 +44,67 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
 
   Future<void> _toggleMic(String fieldKey) async {
     if (_activeMic == fieldKey) {
-      _speech.stop();
-      setState(() => _activeMic = null);
+      await _speech.stop();
+      if (mounted) setState(() => _activeMic = null);
     } else {
       await _speech.stop();
+      await Future.delayed(const Duration(milliseconds: 200));
+
+      final micStatus = await Permission.microphone.request();
+      if (!micStatus.isGranted) return;
+
       final available = await _speech.initialize(
         onStatus: (status) {
           debugPrint('[STT] Status: $status');
-          if (status == 'done') {
-            setState(() => _activeMic = null);
+          if (status == 'notListening' || status == 'done') {
+            if (mounted) setState(() => _activeMic = null);
           }
         },
         onError: (error) {
           debugPrint('[STT] Error: ${error.errorMsg}');
-          setState(() => _activeMic = null);
+          if (mounted) setState(() => _activeMic = null);
         },
       );
 
       if (!available) return;
 
-      setState(() => _activeMic = fieldKey);
+      if (mounted) setState(() => _activeMic = fieldKey);
 
-      final baseText = fieldKey == 'title'
-          ? _titleController.text
-          : _contentController.text;
+      final controller = fieldKey == 'title'
+          ? _titleController
+          : _contentController;
+
+      final baseTextAtStart = controller.text.trim();
+
+      // ✅ Clear any leftover buffer from previous mic session
+      String lastSpoken = '';
 
       _speech.listen(
-        pauseFor: const Duration(seconds: 10),
+        pauseFor: const Duration(seconds: 4),
         listenFor: const Duration(seconds: 60),
         localeId: 'en_US',
         onResult: (result) {
-          setState(() {
-            final spoken = result.recognizedWords.trim();
-            final newText = (baseText + ' ' + spoken).trim();
+          final spoken = result.recognizedWords.trim();
 
-            if (fieldKey == 'title') {
-              _titleController.text = newText;
-            } else {
-              _contentController.text = newText;
-            }
-          });
+          if (spoken != lastSpoken &&
+              spoken.isNotEmpty &&
+              mounted &&
+              _activeMic == fieldKey) {
+            lastSpoken = spoken;
+            final newText = '$baseTextAtStart $spoken'.trim();
+            setState(() {
+              controller.text = newText;
+              controller.selection = TextSelection.collapsed(
+                offset: newText.length,
+              );
+            });
+          }
         },
       );
     }
   }
 
-  void _saveEntry() async {
+  Future<void> _saveEntry() async {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
@@ -119,9 +138,7 @@ class _AddDiaryEntryScreenState extends ConsumerState<AddDiaryEntryScreen> {
     final isEdit = widget.entry != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEdit ? 'Edit Entry' : 'Add Entry'),
-      ),
+      appBar: AppBar(title: Text(isEdit ? 'Edit Entry' : 'Add Entry')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

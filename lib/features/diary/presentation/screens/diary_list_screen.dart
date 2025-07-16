@@ -46,7 +46,7 @@ class _DiaryListScreenState extends ConsumerState<DiaryListScreen> {
     final diaryEntries = ref.watch(diaryNotifierProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Digital Diary')),
+      appBar: AppBar(title: const Text('Digital Notes')),
       body: diaryEntries.isEmpty
           ? const Center(child: Text("No entries yet. Tap + to add one!"))
           : ListView.separated(
