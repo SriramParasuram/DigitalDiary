@@ -108,11 +108,11 @@ class _DiaryDetailScreenState extends ConsumerState<DiaryDetailScreen> {
             icon: Icon(isEditing ? Icons.save : Icons.edit),
             onPressed: _toggleEditSave,
           ),
-          if (!isEditing)
-            IconButton(
-              icon: const Icon(Icons.volume_up),
-              onPressed: () => ttsService.speak(contentText),
-            ),
+          // if (!isEditing)
+          //   IconButton(
+          //     icon: const Icon(Icons.volume_up),
+          //     onPressed: () => ttsService.speak(contentText),
+          //   ),
         ],
       ),
       body: Padding(
