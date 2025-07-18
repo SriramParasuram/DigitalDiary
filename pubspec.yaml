@@ -1,0 +1,76 @@
+name: digital_notes
+description: "A minimalist voice-powered diary and note-taking app."
+
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_hooks: ^0.21.2
+  riverpod: ^2.6.1
+  hooks_riverpod: ^2.6.1
+  hive_flutter: ^1.1.0
+  hive: ^2.2.3
+  path_provider: ^2.1.5
+  intl: ^0.20.2
+  go_router: ^16.0.0
+  flutter_tts: ^4.2.3
+  speech_to_text: ^7.1.0
+  permission_handler: ^12.0.1
+  flutter_native_splash: ^2.4.6
+  flutter_launcher_icons: ^0.14.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.6
+
+
+  flutter_lints: ^5.0.0
+
+
+flutter:
+
+  # The following line ensures that the Material Icons font is
+  # included with your application, so that you can use the icons in
+  # the material Icons class.
+  uses-material-design: true
+  assets:
+    - lib/assets/splash/splash_image.png
+    - lib/assets/icons/app_icon.png
+
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "lib/assets/icons/app_icon.png"
+  adaptive_icon_background: "#53D31C" # or a solid color
+  #adaptive_icon_foreground: "lib/assets/icons/app_icon_foreground.png"
+
+flutter_native_splash:
+  android: true
+  ios: false
+  fullscreen: true
+  color: "#FFA726" # Fallback for older Android
+  image: lib/assets/splash/splash_image.png
+  android_gravity: fill
+  android_screen_orientation: portrait
+
+  android_12:
+    color: "#FFA726"
+    image: lib/assets/icons/splash_icon.png
+    icon_background_color: "#FFA726"
+    image_dark: lib/assets/icons/splash_icon.png
+    icon_background_color_dark: "#FFA726"
+
+
+
+
+
